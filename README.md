@@ -4,7 +4,7 @@
 
 ## Usage
 
-直接点 [link]() 下载最新版然后运行即可。
+直接点 [link](https://github.com/caijiMK/DictationMaster/releases) 下载最新版然后运行即可。
 
 ## Feature
 
