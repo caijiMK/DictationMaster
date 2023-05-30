@@ -118,7 +118,7 @@ void Practice::main() {
 			ac++;
 			get<2>(v[pos]) = max(get<2>(v[pos]) - acval, 0);
 			puts("Accepted.");
-		} else if (s == get<0>(v[pos]) + " /skip") {
+		} else if (s == get<0>(v[pos]) + " /pass") {
 			ac += get<2>(v[pos]);
 			num += get<2>(v[pos]) - 1;
 			get<2>(v[pos]) = 0;
