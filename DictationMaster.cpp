@@ -40,6 +40,10 @@ namespace Dictation {
 }
 
 int main() {
+#ifdef _WIN32
+	system("chcp 65001");
+	system("cls");
+#endif
 	puts("使用说明\n\
 \n\
 运行后首先输入词典名称，可以使用绝对路径或相对路径。\n\
