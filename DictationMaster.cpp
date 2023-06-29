@@ -169,9 +169,12 @@ void Dictation::main() {
 	cin.get(); cin.get();
 	for (auto i : v) {
 		systemClear();
-		printf("%s\n", i.second.c_str());string s;
+		printf("%s\n", i.second.c_str());
+		string s;
 		do getline(cin, s);
 		while (s == "\n" || s == "\r" || s == "\r\n");
+		puts("");
+		while (s.back() == ' ') s.pop_back();
 		res.push_back(s);
 		systemClear();
 	}
@@ -181,7 +184,7 @@ void Dictation::main() {
 		else wrong.push_back(i);
 	printf("你的得分为：%dpts.\n", (int)floor((double)ac / num * 100));
 	if (ac != num) {
-		puts("你错误的题目：");
+		puts("你错误的题目：\n");
 		for (auto i : wrong)
 			printf("%s\n你的答案为：%s\n正确答案为：%s\n\n",
 				v[i].second.c_str(), res[i].c_str(), v[i].first.c_str());	
