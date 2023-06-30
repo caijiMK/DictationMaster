@@ -1,0 +1,1 @@
+g++ DictationMaster.cpp -std=c++14 -O2 -o DictationMaster
