@@ -2,9 +2,40 @@
 
 一个简陋的命令行英语默写大师
 
+## Installation
+
+### 方法一
+
+从 [link](https://github.com/caijiMK/DictationMaster/releases) 下载最新版。
+
+### 方法二
+
+1. 在命令行中执行以下命令：
+    ```shell
+    https://github.com/caijiMK/DictationMaster.git
+    ```
+2. 对于 Windows 用户：双击项目根目录下 `build.bat` 文件生成可执行文件。  
+    对于 Linux 用户：在命令行中输入以下命令生成可执行文件。
+    ```shell
+   ./build.sh
+    ```
+
 ## Usage
 
-直接点 [link](https://github.com/caijiMK/DictationMaster/releases) 下载最新版然后运行即可。
+在与可执行文件同一目录下建立词典文件。  
+词典格式如下：
+
+```text
+英文内容 : 中文翻译 权值
+```
+
+其中权值越大，在默写中出现的概率越高。
+
+然后运行可执行文件，根据提示选择词典和模式，开始默写。
+
+在练习模式下，在中文翻译后面会有 `(value: xxx, sum: yyy)` 的字样，表示当前词的权值和总权值。  
+在练习模式下可以输入 `/finish` 结束默写。  
+在练习模式下可以输入 `/skip` 暂时跳过当前单词。
 
 ## Feature
 
@@ -19,6 +50,9 @@
 
 - 优化模拟模式的比较。
 - 增强鲁棒性……
+- 修复词典功能
+- 中断功能
+- 一意多词
 
 ## Bugs
 
