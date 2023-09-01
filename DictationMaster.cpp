@@ -1,16 +1,18 @@
 // Think twice, code once.
-#include <tuple>
-#include <cmath>
-#include <random>
+#include <algorithm>
 #include <chrono>
-#include <vector>
+#include <cmath>
 #include <cstdio>
-#include <string>
-#include <fstream>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <iostream>
-#include <algorithm>
+#include <random>
+#include <string>
+#include <tuple>
+#include <type_traits>
+#include <utility>
+#include <vector>
 using namespace std;
 
 mt19937 gen(chrono::system_clock::now().time_since_epoch().count());
@@ -18,18 +20,24 @@ void systemClear() {
 #ifdef _WIN32
 	system("cls");
 #else
-	system("clear");
+	cout << "\033c";
 #endif
-	return ;
 }
 
 namespace Practice {
 	int st, acval, waval, num, ac, lst = -1;
 	string dictionary;
-	vector<tuple<string, string, int>> v;
+	struct word {
+		string contentEn;
+		string contentCn;
+		int val;
+	};
+	vector<word> v;
+	// vector<tuple<string, string, int>> v;
 
+	void inputDict(const char *filename);
 	void main();
-}
+} // namespace Practice
 namespace Dictation {
 	vector<string> res;
 	vector<int> wrong;
@@ -37,109 +45,154 @@ namespace Dictation {
 	string dictionary;
 
 	void main();
-}
+} // namespace Dictation
 
-int main() {
+auto main() -> int {
 #ifdef _WIN32
 	system("chcp 65001");
 	system("cls");
 #endif
-	puts("使用说明\n\
-\n\
-运行后首先输入词典名称，可以使用绝对路径或相对路径。\n\
-然后输入加权，应为三个整数，分别表示每个单词的初始权值、默写正确后减少的权值和默写错误后增加的权值。\n\
-\n\
-默写时会显示当前单词的权值和所有单词的总权值。\n\
-输入 /finish 可以直接结束默写。\n\
-输入 /skip 暂时跳过这个单词。\n\
-在输入完正确单词后加一个空格再输入 /pass 可以直接清空该单词权值。\n\
-\n\
-输入回车开始默写。");
+	cout << R"(使用说明
+
+运行后首先输入词典名称，可以使用绝对路径或相对路径。
+然后输入加权，应为三个整数，分别表示每个单词的初始权值、默写正确后减少的权值和默写错误后增加的权值。
+
+默写时会显示当前单词的权值和所有单词的总权值。
+输入 /finish 可以直接结束默写。
+输入 /skip 暂时跳过这个单词。
+在输入完正确单词后加一个空格再输入 /pass 可以直接清空该单词权值。
+
+输入回车开始默写。
+)";
 	cin.get();
 	systemClear();
-	puts("请选择模式。");
-	puts("1. 练习（传统模式） 2. 模拟听写");
+	cout << "请选择模式。\n";
+	cout << "1. 练习（传统模式） 2. 模拟听写\n";
 	int x;
-	scanf("%d", &x);
+	cin >> x;
 	systemClear();
-	if (x == 1) Practice::main();
-	else Dictation::main();
+	if (x == 1) {
+		Practice::main();
+	}
+	else {
+		Dictation::main();
+	}
 	return 0;
 }
 
-void Practice::main() {
-	puts("请选择词库");
-	cin >> dictionary;
-	ifstream din(dictionary.c_str());
-	puts("请输入加权");
-	scanf("%d%d%d", &st, &acval, &waval);
-	{
-		string s;
-		for (int line = 1; getline(din, s); line++) {
-			if (s == "\n" || s == "\r" || s == "\r\n") continue;
-			int pos = -1;
-			for (int i = 0; i < (int)s.length(); i++)
-				if (s[i] == ':') {pos = i; break;}
-			if (pos == -1) {
-				systemClear();
-				printf("词典第 %d 行出错。\n程序停止运行。\n", line);
-				return ;
-			}
-			v.emplace_back(s.substr(0, pos - 1), s.substr(pos + 2), st);
+void Practice::inputDict(const char *filename) {
+	ifstream din(filename);
+	string s;
+	for (int line = 1; getline(din, s); line++) {
+		if (s == "\n" || s == "\r" || s == "\r\n") {
+			continue;
 		}
+		int pos = -1;
+		for (int i = 0; i < static_cast<int>(s.length()); i++) {
+			if (s[i] == ':') {
+				pos = i;
+				break;
+			}
+		}
+		if (pos == -1) {
+			systemClear();
+			cerr << "词典第 " << line << " 行出错。\n程序停止运行。\n";
+			return;
+		}
+		v.emplace_back(s.substr(0, pos - 1), s.substr(pos + 2), st);
+		size_t tmp;
+		(tmp = v.back().contentCn.find('\r')) != string::npos
+			? v.back().contentCn.erase(tmp)
+			: "";
+
+		(tmp = v.back().contentEn.find('\r')) != string::npos
+			? v.back().contentEn.erase(tmp)
+			: "";
 	}
+}
+void Practice::main() {
+	cout << "请选择词库\n";
+	cin >> dictionary;
+	cout << "请输入加权\n";
+	cin >> st >> acval >> waval;
+	inputDict(dictionary.c_str());
 	systemClear();
-	puts("词典加载成功。");
-	puts("==预览==");
-	for (auto i : v) printf("%s : %s\n", get<1>(i).c_str(), get<0>(i).c_str());
-	puts("输入回车开始默写。");
-	cin.get(); cin.get();
-	while (1) {
+	cout << "词典加载成功。\n==预览==\n";
+	for (auto i : v) {
+		cout << i.contentCn << " : " << i.contentEn << "\n";
+	}
+	cout << "输入回车开始默写。\n";
+	cin.get();
+	cin.get();
+	while (true) {
 		int sum = 0;
-		for (auto i : v) sum += get<2>(i);
-		if (sum == 0) break;
+		for (auto i : v) {
+			sum += i.val;
+		}
+		if (sum == 0) {
+			break;
+		}
 		int pos = -1;
 		{
-			int rnd = gen() % sum + 1, tmp = 0;
-			for (int i = 0; i < (int)v.size(); i++)
-				if (rnd <= tmp + get<2>(v[i])) {pos = i; break;}
-				else tmp += get<2>(v[i]);
+			int rnd = gen() % sum + 1;
+			int tmp = 0;
+			for (int i = 0; i < static_cast<int>(v.size()); i++) {
+				if (rnd <= tmp + v[i].val) {
+					pos = i;
+					break;
+				}
+				tmp += v[i].val;
+			}
 		}
-		if (pos == lst && get<2>(v[pos]) != sum) continue;
+		if (pos == lst && v[pos].val != sum) {
+			continue;
+		}
 		lst = pos;
 		systemClear();
-		printf("%s (value: %d, sum: %d)\n", get<1>(v[pos]).c_str(), get<2>(v[pos]), sum);
+		cout << v[pos].contentCn << " (value: " << v[pos].val
+			 << ", sum: " << sum << ")\n";
 		string s;
-		do getline(cin, s);
-		while (s == "\n" || s == "\r" || s == "\r\n");
-		puts("");
-		while (s.back() == ' ') s.pop_back();
-		if (s == get<0>(v[pos])) {
+		do {
+			getline(cin, s);
+		} while (s == "\n" || s == "\r" || s == "\r\n");
+		cout << "\n";
+		while (s.back() == ' ') {
+			s.pop_back();
+		}
+		if (s == v[pos].contentEn) {
 			ac++;
-			get<2>(v[pos]) = max(get<2>(v[pos]) - acval, 0);
-			puts("Accepted.");
-		} else if (s == get<0>(v[pos]) + " /pass") {
-			ac += get<2>(v[pos]);
-			num += get<2>(v[pos]) - 1;
-			get<2>(v[pos]) = 0;
-			puts("Accepted and passed.");
-		} else if (s == "/finish") break;
-		else if (s == "/skip") num--;
-		else if (s + "." == get<0>(v[pos])) puts("不喜欢加句号是这样的/cf/cf/cf"), ac++;
+			v[pos].val = max(v[pos].val - acval, 0);
+			cout << "Accepted.\n";
+		}
+		else if (s == v[pos].contentEn + " /pass") {
+			ac += v[pos].val;
+			num += v[pos].val - 1;
+			v[pos].val = 0;
+			cout << "Accepted and passed.\n";
+		}
+		else if (s == "/finish") {
+			break;
+		}
+		else if (s == "/skip") {
+			num--;
+		}
+		else if (s + "." == v[pos].contentEn) {
+			cout << "不喜欢加句号是这样的/cf/cf/cf\n", ac++;
+		}
 		else {
-			get<2>(v[pos]) += waval;
-			puts("Wrong. The answer is:");
-			printf("%s\n", get<0>(v[pos]).c_str());
+			v[pos].val += waval;
+			cout << "Wrong. The answer is:\n";
+			cout << v[pos].contentEn << "\n";
 		}
 		num++;
-		puts("\n按回车继续");
-		getchar();
+		cout << "\n按回车继续";
+		cin.get();
 	}
 	systemClear();
-	puts("默写结束！");
-	printf("完成默写使用次数：%d, 正确次数：%d, 正确率: %.1lf%%\n", num, ac, (double)ac / num * 100);
-	puts("按回车结束程序");
-	return ;
+	cout << "默写结束！\n";
+	cout << "完成默写使用次数：" << num << ", 正确次数：" << ac
+		 << ", 正确率: " << static_cast<double>(ac) / num * 100 << "\n";
+	cout << "按回车结束程序\n";
 }
 
 void Dictation::main() {
@@ -149,14 +202,20 @@ void Dictation::main() {
 	{
 		string s;
 		for (int line = 1; getline(din, s); line++) {
-			if (s == "\n" || s == "\r" || s == "\r\n") continue;
+			if (s == "\n" || s == "\r" || s == "\r\n") {
+				continue;
+			}
 			int pos = -1;
-			for (int i = 0; i < (int)s.length(); i++)
-				if (s[i] == ':') {pos = i; break;}
+			for (int i = 0; i < static_cast<int>(s.length()); i++) {
+				if (s[i] == ':') {
+					pos = i;
+					break;
+				}
+			}
 			if (pos == -1) {
 				systemClear();
 				printf("词典第 %d 行出错。\n程序停止运行。\n", line);
-				return ;
+				return;
 			}
 			v.emplace_back(s.substr(0, pos - 1), s.substr(pos + 2));
 		}
@@ -164,27 +223,42 @@ void Dictation::main() {
 	systemClear();
 	puts("词典加载成功。");
 	puts("==预览==");
-	for (auto i : v) printf("%s : %s\n", i.second.c_str(), i.first.c_str());
+	for (const auto &i : v) {
+		printf("%s : %s\n", i.second.c_str(), i.first.c_str());
+	}
 	puts("输入回车开始默写。");
-	cin.get(); cin.get();
-	for (auto i : v) {
+	cin.get();
+	cin.get();
+	for (const auto &i : v) {
 		systemClear();
-		printf("%s\n", i.second.c_str());string s;
-		do getline(cin, s);
-		while (s == "\n" || s == "\r" || s == "\r\n");
+		printf("%s\n", i.second.c_str());
+		string s;
+		do {
+			getline(cin, s);
+		} while (s == "\n" || s == "\r" || s == "\r\n");
 		res.push_back(s);
 		systemClear();
 	}
-	int ac = 0, num = res.size();
-	for (int i = 0; i < (int)res.size(); i++)
-		if (res[i] == v[i].first) ac++;
-		else wrong.push_back(i);
-	printf("你的得分为：%dpts.\n", (int)floor((double)ac / num * 100));
+	int ac = 0;
+	int num = res.size();
+	for (int i = 0; i < static_cast<int>(res.size()); i++) {
+		if (res[i] == v[i].first) {
+			ac++;
+		}
+		else {
+			wrong.push_back(i);
+		}
+	}
+	printf("你的得分为：%dpts.\n",
+		   static_cast<int>(floor(static_cast<double>(ac) / num * 100)));
 	if (ac != num) {
 		puts("你错误的题目：");
-		for (auto i : wrong)
+		for (auto i : wrong) {
 			printf("%s\n你的答案为：%s\n正确答案为：%s\n\n",
-				v[i].second.c_str(), res[i].c_str(), v[i].first.c_str());	
-	} else puts("膜拜 AK King! /bx/bx/bx");
-	return ;
+				   v[i].second.c_str(), res[i].c_str(), v[i].first.c_str());
+		}
+	}
+	else {
+		puts("膜拜 AK King! /bx/bx/bx");
+	}
 }
