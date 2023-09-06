@@ -2,20 +2,24 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <queue>
 #include <random>
 #include <string>
 #include <tuple>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 using namespace std;
 
 mt19937 gen(chrono::system_clock::now().time_since_epoch().count());
+
 void systemClear() {
 #ifdef _WIN32
 	system("cls");
@@ -24,29 +28,277 @@ void systemClear() {
 #endif
 }
 
-namespace Practice {
-	int st, acval, waval, num, ac, lst = -1;
-	string dictionary;
-	struct word {
-		string contentEn;
-		string contentCn;
-		int val;
-	};
-	vector<word> v;
-	// vector<tuple<string, string, int>> v;
+struct piece {
+	enum Language : int { EN = 0, CN = 1 };
+	static constexpr int LanguageCount = 2;
+	string content[LanguageCount];
+	int val;
 
-	void inputDict(const char *filename);
-	void main();
-} // namespace Practice
-namespace Dictation {
-	vector<string> res;
-	vector<int> wrong;
-	vector<pair<string, string>> v;
-	string dictionary;
+	piece() : content{}, val(0) {}
+	explicit piece(const char **str, int cnt = LanguageCount, int val = 0)
+		: val(val) {
+		for (int i = 0; i < cnt; ++i) {
+			content[i] = str[i];
+		}
+	}
+};
+struct dictionary {
+  private:
+	vector<piece> data;
 
-	void main();
-} // namespace Dictation
+	int valueStable;
+	int valueIncrease;
+	int valueDecrease;
 
+  public:
+	dictionary() : valueStable(), valueIncrease(), valueDecrease() {}
+	dictionary(int valueStable, int valueIncrease, int valueDecrease,
+			   vector<piece> data = {})
+		: data(std::move(data)), valueStable(valueStable),
+		  valueIncrease(valueIncrease), valueDecrease(valueDecrease) {}
+
+	auto fileInput(const char *filename) -> bool;
+	auto fileOutput(const char *filename, int limit = -1) const -> bool;
+
+	auto randomSelect(int floor = 0, int ceil = 0x3f3f3f3f) -> piece & {
+		vector<piece *> res;
+		for (auto &now : data) {
+			if (now.val >= floor && now.val <= ceil) {
+				res.push_back(&now);
+			}
+		}
+		return *res[uniform_int_distribution<size_t>(0, res.size())(gen)];
+	}
+	[[nodiscard]] auto randomSelect(int floor = 0, int ceil = 0x3f3f3f3f) const
+		-> const piece & {
+		vector<const piece *> res;
+		for (const auto &now : data) {
+			if (now.val >= floor && now.val <= ceil) {
+				res.push_back(&now);
+			}
+		}
+		return *res[uniform_int_distribution<size_t>(0, res.size())(gen)];
+	}
+	auto maxiumSelect() -> piece & {
+		piece *res = data.data();
+		for (auto &now : data) {
+			if (now.val > res->val) {
+				res = &now;
+			}
+		}
+		return *res;
+	}
+	[[nodiscard]] auto maxiumSelect() const -> const piece & {
+		const piece *res = data.data();
+		for (const auto &now : data) {
+			if (now.val > res->val) {
+				res = &now;
+			}
+		}
+		return *res;
+	}
+
+	void setValueToStable() {
+		for (auto &now : data) {
+			now.val = valueStable;
+		}
+	}
+
+	auto find(const piece &x) const -> size_t {
+		return ::find(data.begin(), data.end(), x) - data.begin();
+	}
+	auto size() const -> size_t { return data.size(); }
+
+	void setValueToStable(size_t pos) { data[pos].val = valueStable; }
+	void increaseValue(size_t pos) { data[pos].val += valueIncrease; }
+	void decreaseValue(size_t pos) { data[pos].val -= valueDecrease; }
+
+	void setValueStable(int val) { valueStable = val; }
+	void setValueIncrease(int val) { valueIncrease = val; }
+	void setValueDecrease(int val) { valueDecrease = val; }
+
+	auto getPiece(size_t pos) -> piece & { return data[pos]; }
+	[[nodiscard]] auto getPiece(size_t pos) const -> const piece & {
+		return data[pos];
+	}
+
+	[[nodiscard]] auto getValueSum() const -> int {
+		int res = 0;
+		for (const auto &now : data) {
+			res += now.val;
+		}
+		return res;
+	}
+};
+
+auto dictionary::fileInput(const char *filename) -> bool {
+	data.clear();
+	ifstream din(filename);
+	int language = 0;
+	while (!din.eof()) {
+		char input = static_cast<char>(din.get());
+		if (input == '\r') {
+			continue;
+		}
+		if (input == '\n') {
+			data.emplace_back("", "", 0);
+			language = 0;
+			continue;
+		}
+		if (input == ':') {
+			data.back().content[language].erase(
+				data.back().content[language].find_last_not_of(' ') + 1);
+			data.back().content[++language] = "";
+		}
+	}
+	return true;
+}
+auto dictionary::fileOutput(const char *filename, int limit) const -> bool {
+	ofstream dout(filename);
+	for (auto now : data) {
+		bool flg = false;
+		for (int i = 0;
+			 i < (limit == -1
+					  ? piece::LanguageCount
+					  : min(limit, static_cast<int>(piece::LanguageCount)));
+			 ++i) {
+			if (flg) {
+				dout << " : ";
+			}
+			else {
+				flg = true;
+			}
+			dout << now.content[i];
+		}
+		dout << "\n";
+	}
+	return true;
+}
+
+enum varType {
+	Int,
+	Float,
+	Double,
+	Char,
+	Str,	 // string
+	ListStr, // vector<string>
+};
+class Practitioner {
+	dictionary dictionarySelected;
+
+	double score;
+
+  public:
+	Practitioner() = default;
+	explicit Practitioner(dictionary dictionarySelected)
+		: dictionarySelected(std::move(dictionarySelected)) {}
+
+	auto loadPreferenceFromFile(const char *filename) -> bool {}
+	auto dumpPreferenceToFile(const char *filename) const -> bool {}
+
+	auto selectDictionary(const char *filename) -> bool {
+		return dictionarySelected.fileInput(filename);
+	}
+	void practice() {
+		cout << "==预览==\n";
+		for (int i = 0; i < dictionarySelected.size(); ++i) {
+			auto now = dictionarySelected.getPiece(i);
+			cout << now.content[piece::EN] << " : " << now.content[piece::CN]
+				 << "\n";
+		}
+
+		int valueStable;
+		int valueIncrease;
+		int valueDecrease;
+		cout << "请输入加权 [默认 增长 衰减] :";
+		cin >> valueStable >> valueIncrease >> valueDecrease;
+		dictionarySelected.setValueStable(valueStable);
+		dictionarySelected.setValueIncrease(valueIncrease);
+		dictionarySelected.setValueDecrease(valueDecrease);
+
+		while (dictionarySelected.getValueSum() != 0) {
+			piece &nowPiece = gen() % 2 == 0
+								  ? dictionarySelected.maxiumSelect()
+								  : dictionarySelected.randomSelect(1);
+			cout << nowPiece.content[piece::CN] << " (value:" << nowPiece.val
+				 << ", sum:" << dictionarySelected.getValueSum() << ")\n";
+			string input;
+			getline(cin, input);
+			while (input.back() == ' ' || input.back() == '\n' ||
+				   input.back() == '\r') {
+				input.pop_back();
+			}
+			if (input == "/finish") {
+				break;
+			}
+			if (input == "/skip") {
+				continue;
+			}
+
+			if (input.find(nowPiece.content[piece::EN]) == 0 &&
+				(input.size() == nowPiece.content[piece::EN].size() ||
+				 input.substr(nowPiece.content[piece::EN].size(), 2) ==
+					 " /")) {
+				dictionarySelected.decreaseValue(
+					dictionarySelected.find(nowPiece));
+				cout << "回答正确。\n";
+				if (input.find_last_of("/pass") != string::npos) {
+					nowPiece.val = 0;
+					cout << "权值已清空！\n";
+				}
+				goto NXT;
+			}
+
+			dictionarySelected.increaseValue(
+				dictionarySelected.find(nowPiece));
+			if (input + "." == nowPiece.content[piece::EN]) {
+				cout << "不喜欢写句号是这样的/cf/cf。\n";
+			}
+			else {
+				cout << "回答错误。\n";
+			}
+			cout << "正确答案是: " << nowPiece.content[piece::EN] << "\n";
+
+		NXT:
+			cout << "按下回车以继续。\n";
+			cin.get();
+		}
+	}
+} practitioner;
+
+class Display {
+	class Menu {
+		class Item {
+			size_t width;
+			string name;
+			bool visiable;
+
+		  public:
+			explicit Item(string name = "unnamedMenuItem",
+						  bool visiable = true)
+				: width(name.size() + 2), name(std::move(name)),
+				  visiable(visiable) {}
+		};
+		vector<Item> items;
+		int x0, y0;
+		int x1, y1;
+		int height;
+
+	  public:
+		explicit Menu(int x0 = 0, int y0 = 0, int x1 = 1, int y1 = -1,
+					  vector<Item> items = {})
+			: x0(x0), y0(y0), x1(x1), y1(y1), items(std::move(items)) {
+			height = x1 - x0;
+		}
+	} menuMain;
+
+  public:
+	void redisplayMenu(int x0 = 0, int y0 = 0, int x1 = -1, int y1 = -1) {
+		int nowx = 0;
+		int nowy = 0;
+	}
+	void redisplay(int x0 = 0, int y0 = 0, int x1 = -1, int y1 = -1) {}
+};
 auto main() -> int {
 #ifdef _WIN32
 	system("chcp 65001");
@@ -66,60 +318,25 @@ auto main() -> int {
 )";
 	cin.get();
 	systemClear();
-	cout << "请选择模式。\n";
-	cout << "1. 练习（传统模式） 2. 模拟听写\n";
-	int x;
-	cin >> x;
-	systemClear();
-	if (x == 1) {
-		Practice::main();
-	}
-	else {
-		Dictation::main();
-	}
+	string dictionary;
+	cout << "请选择词典: \n";
+	cin >> dictionary;
+	practitioner.selectDictionary(dictionary.c_str());
+	practitioner.practice();
 	return 0;
 }
-
-void Practice::inputDict(const char *filename) {
-	ifstream din(filename);
-	string s;
-	for (int line = 1; getline(din, s); line++) {
-		if (s == "\n" || s == "\r" || s == "\r\n") {
-			continue;
-		}
-		int pos = -1;
-		for (int i = 0; i < static_cast<int>(s.length()); i++) {
-			if (s[i] == ':') {
-				pos = i;
-				break;
-			}
-		}
-		if (pos == -1) {
-			systemClear();
-			cerr << "词典第 " << line << " 行出错。\n程序停止运行。\n";
-			return;
-		}
-		v.emplace_back(s.substr(0, pos - 1), s.substr(pos + 2), st);
-		size_t tmp;
-		(tmp = v.back().contentCn.find('\r')) != string::npos
-			? v.back().contentCn.erase(tmp)
-			: "";
-
-		(tmp = v.back().contentEn.find('\r')) != string::npos
-			? v.back().contentEn.erase(tmp)
-			: "";
-	}
-}
+/*
 void Practice::main() {
 	cout << "请选择词库\n";
 	cin >> dictionary;
 	cout << "请输入加权\n";
 	cin >> st >> acval >> waval;
-	inputDict(dictionary.c_str());
+	inputDict(dictionary.c_str(), v);
 	systemClear();
 	cout << "词典加载成功。\n==预览==\n";
 	for (auto i : v) {
-		cout << i.contentCn << " : " << i.contentEn << "\n";
+		cout << i.content[piece::Language::CN] << " : "
+			 << i.content[piece::Language::EN] << "\n";
 	}
 	cout << "输入回车开始默写。\n";
 	cin.get();
@@ -149,8 +366,8 @@ void Practice::main() {
 		}
 		lst = pos;
 		systemClear();
-		cout << v[pos].contentCn << " (value: " << v[pos].val
-			 << ", sum: " << sum << ")\n";
+		cout << v[pos].content[piece::Language::CN]
+			 << " (value: " << v[pos].val << ", sum: " << sum << ")\n";
 		string s;
 		do {
 			getline(cin, s);
@@ -159,12 +376,12 @@ void Practice::main() {
 		while (s.back() == ' ') {
 			s.pop_back();
 		}
-		if (s == v[pos].contentEn) {
+		if (s == v[pos].content[piece::Language::EN]) {
 			ac++;
 			v[pos].val = max(v[pos].val - acval, 0);
 			cout << "Accepted.\n";
 		}
-		else if (s == v[pos].contentEn + " /pass") {
+		else if (s == v[pos].content[piece::Language::EN] + " /pass") {
 			ac += v[pos].val;
 			num += v[pos].val - 1;
 			v[pos].val = 0;
@@ -176,13 +393,13 @@ void Practice::main() {
 		else if (s == "/skip") {
 			num--;
 		}
-		else if (s + "." == v[pos].contentEn) {
+		else if (s + "." == v[pos].content[piece::Language::EN]) {
 			cout << "不喜欢加句号是这样的/cf/cf/cf\n", ac++;
 		}
 		else {
 			v[pos].val += waval;
 			cout << "Wrong. The answer is:\n";
-			cout << v[pos].contentEn << "\n";
+			cout << v[pos].content[piece::Language::EN] << "\n";
 		}
 		num++;
 		cout << "\n按回车继续";
@@ -196,42 +413,22 @@ void Practice::main() {
 }
 
 void Dictation::main() {
-	puts("请选择词库");
+	cout << "请选择词库\n";
 	cin >> dictionary;
-	ifstream din(dictionary.c_str());
-	{
-		string s;
-		for (int line = 1; getline(din, s); line++) {
-			if (s == "\n" || s == "\r" || s == "\r\n") {
-				continue;
-			}
-			int pos = -1;
-			for (int i = 0; i < static_cast<int>(s.length()); i++) {
-				if (s[i] == ':') {
-					pos = i;
-					break;
-				}
-			}
-			if (pos == -1) {
-				systemClear();
-				printf("词典第 %d 行出错。\n程序停止运行。\n", line);
-				return;
-			}
-			v.emplace_back(s.substr(0, pos - 1), s.substr(pos + 2));
-		}
-	}
+	inputDict(dictionary.c_str(), v);
 	systemClear();
-	puts("词典加载成功。");
-	puts("==预览==");
+	cout << "词典加载成功。\n";
+	cout << "==预览==\n";
 	for (const auto &i : v) {
-		printf("%s : %s\n", i.second.c_str(), i.first.c_str());
+		cout << i.content[piece::Language::CN] << " : "
+			 << i.content[piece::Language::EN].c_str() << "\n";
 	}
-	puts("输入回车开始默写。");
+	cout << "输入回车开始默写。\n";
 	cin.get();
 	cin.get();
 	for (const auto &i : v) {
 		systemClear();
-		printf("%s\n", i.second.c_str());
+		cout << i.content[piece::Language::CN] << "\n";
 		string s;
 		do {
 			getline(cin, s);
@@ -242,23 +439,27 @@ void Dictation::main() {
 	int ac = 0;
 	int num = res.size();
 	for (int i = 0; i < static_cast<int>(res.size()); i++) {
-		if (res[i] == v[i].first) {
+		if (res[i] == v[i].content[piece::Language::EN]) {
 			ac++;
 		}
 		else {
 			wrong.push_back(i);
 		}
 	}
-	printf("你的得分为：%dpts.\n",
-		   static_cast<int>(floor(static_cast<double>(ac) / num * 100)));
+	cout << "你的得分为："
+		 << static_cast<int>(floor(static_cast<double>(ac) / num * 100))
+		 << "pts.\n";
 	if (ac != num) {
-		puts("你错误的题目：");
+		cout << "你错误的题目：\n";
 		for (auto i : wrong) {
-			printf("%s\n你的答案为：%s\n正确答案为：%s\n\n",
-				   v[i].second.c_str(), res[i].c_str(), v[i].first.c_str());
+			cout << v[i].content[piece::Language::CN] << "\n";
+			cout << "你的答案为：" << res[i] << "\n";
+			cout << "正确答案为：" << v[i].content[piece::Language::EN].c_str()
+				 << "\n";
 		}
 	}
 	else {
-		puts("膜拜 AK King! /bx/bx/bx");
+		cout << "膜拜 AK King! /bx/bx/bx\n";
 	}
 }
+*/
