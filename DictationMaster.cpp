@@ -218,6 +218,7 @@ class Practitioner {
 			cout << now.content[piece::EN] << " : " << now.content[piece::CN]
 				 << "\n";
 		}
+		systemClear();
 
 		int valueStable;
 		int valueIncrease;
@@ -228,6 +229,7 @@ class Practitioner {
 		dictionarySelected.setValueIncrease(valueIncrease);
 		dictionarySelected.setValueDecrease(valueDecrease);
 		dictionarySelected.setValueToStable();
+		systemClear();
 
 		while (dictionarySelected.getValueSum() != 0) {
 			piece &nowPiece = gen() % 2 == 0
@@ -236,16 +238,20 @@ class Practitioner {
 			cout << nowPiece.content[piece::CN] << " (value:" << nowPiece.val
 				 << ", sum:" << dictionarySelected.getValueSum() << ")\n";
 			string input;
-			getline(cin, input);
-			while (input.back() == ' ' || input.back() == '\n' ||
-				   input.back() == '\r') {
-				input.pop_back();
+			while (input.empty()) {
+				getline(cin, input);
+				while (input.back() == ' ' || input.back() == '\n' ||
+					   input.back() == '\r') {
+					input.pop_back();
+				}
 			}
+
 			if (input == "/finish") {
 				break;
 			}
 			if (input == "/skip") {
-				continue;
+				cout << "跳过此单词。\n";
+				goto NXT;
 			}
 
 			if (input.find(nowPiece.content[piece::EN]) == 0 &&
@@ -255,7 +261,7 @@ class Practitioner {
 				dictionarySelected.decreaseValue(
 					dictionarySelected.find(nowPiece));
 				cout << "回答正确。\n";
-				if (input.find_last_of("/pass") != string::npos) {
+				if (input.find("/pass") != string::npos) {
 					nowPiece.val = 0;
 					cout << "权值已清空！\n";
 				}
@@ -275,6 +281,7 @@ class Practitioner {
 		NXT:
 			cout << "按下回车以继续。\n";
 			cin.get();
+			systemClear();
 		}
 	}
 } practitioner;
