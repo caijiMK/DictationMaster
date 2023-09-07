@@ -35,11 +35,15 @@ struct piece {
 	int val;
 
 	piece() : content{}, val(0) {}
-	explicit piece(const char **str, int cnt = LanguageCount, int val = 0)
+	piece(const char **str, int cnt = LanguageCount, int val = 0) // NOLINT
 		: val(val) {
 		for (int i = 0; i < cnt; ++i) {
 			content[i] = str[i];
 		}
+	}
+
+	auto operator==(const piece &x) const -> bool {
+		return this->content[EN] == x.content[EN];
 	}
 };
 struct dictionary {
@@ -133,24 +137,32 @@ struct dictionary {
 
 auto dictionary::fileInput(const char *filename) -> bool {
 	data.clear();
+	data.emplace_back();
 	ifstream din(filename);
 	int language = 0;
+	auto formatString = [](string &x) -> void {
+		x.erase(0, x.find_first_not_of(' '));
+		x.erase(x.find_last_not_of(' ') + 1);
+	};
 	while (!din.eof()) {
-		char input = static_cast<char>(din.get());
+		int input = din.get();
 		if (input == '\r') {
 			continue;
 		}
 		if (input == '\n') {
-			data.emplace_back("", "", 0);
+			formatString(data.back().content[language]);
+			data.emplace_back();
 			language = 0;
 			continue;
 		}
 		if (input == ':') {
-			data.back().content[language].erase(
-				data.back().content[language].find_last_not_of(' ') + 1);
+			formatString(data.back().content[language]);
 			data.back().content[++language] = "";
+			continue;
 		}
+		data.back().content[language].push_back(static_cast<char>(input));
 	}
+	data.pop_back();
 	return true;
 }
 auto dictionary::fileOutput(const char *filename, int limit) const -> bool {
@@ -210,11 +222,12 @@ class Practitioner {
 		int valueStable;
 		int valueIncrease;
 		int valueDecrease;
-		cout << "请输入加权 [默认 增长 衰减] :";
+		cout << "请输入加权 [默认 增长 衰减] : ";
 		cin >> valueStable >> valueIncrease >> valueDecrease;
 		dictionarySelected.setValueStable(valueStable);
 		dictionarySelected.setValueIncrease(valueIncrease);
 		dictionarySelected.setValueDecrease(valueDecrease);
+		dictionarySelected.setValueToStable();
 
 		while (dictionarySelected.getValueSum() != 0) {
 			piece &nowPiece = gen() % 2 == 0
